@@ -141,6 +141,7 @@ if(!class_exists('AngellEYE_Gateway_Paypal')){
             add_filter( "pre_option_woocommerce_paypal_advanced_settings", array($this, 'angelleye_paypal_advanced_decrypt_gateway_api'), 10, 1);
             add_filter( "pre_option_woocommerce_paypal_credit_card_rest_settings", array($this, 'angelleye_paypal_credit_card_rest_decrypt_gateway_api'), 10, 1);
             add_filter( "pre_option_woocommerce_paypal_pro_settings", array($this, 'angelleye_paypal_pro_decrypt_gateway_api'), 10, 1);
+            add_filter( "pre_option_woocommerce_paypal_pro_payflow_ach_settings", array($this, 'angelleye_paypal_pro_payflow_ach_decrypt_gateway_api'), 10, 1);
             add_filter( "pre_option_woocommerce_paypal_pro_payflow_settings", array($this, 'angelleye_paypal_pro_payflow_decrypt_gateway_api'), 10, 1);
             add_filter( "pre_option_woocommerce_braintree_settings", array($this, 'angelleye_braintree_decrypt_gateway_api'), 10, 1);
             add_filter( "pre_option_woocommerce_enable_guest_checkout", array($this, 'angelleye_express_checkout_woocommerce_enable_guest_checkout'), 10, 1);
@@ -357,6 +358,7 @@ if(!class_exists('AngellEYE_Gateway_Paypal')){
             if (!class_exists("WC_Payment_Gateway")) return;
             include_once plugin_dir_path(__FILE__) . 'angelleye-includes/express-checkout/class-wc-gateway-paypal-express-helper-angelleye.php';
             include_once ( PAYPAL_FOR_WOOCOMMERCE_PLUGIN_DIR . '/classes/wc-gateway-paypal-pro-payflow-angelleye.php' );
+            include_once ( PAYPAL_FOR_WOOCOMMERCE_PLUGIN_DIR . '/classes/wc-gateway-paypal-pro-payflow-ach-angelleye.php' );
             include_once ( PAYPAL_FOR_WOOCOMMERCE_PLUGIN_DIR . '/classes/wc-gateway-paypal-advanced-angelleye.php');
             include_once ( PAYPAL_FOR_WOOCOMMERCE_PLUGIN_DIR . '/classes/wc-gateway-paypal-express-angelleye.php');
             include_once ( PAYPAL_FOR_WOOCOMMERCE_PLUGIN_DIR . '/classes/wc-gateway-paypal-pro-angelleye.php');
@@ -473,6 +475,7 @@ if(!class_exists('AngellEYE_Gateway_Paypal')){
                 $methods[] = 'WC_Gateway_PayPal_Credit_Card_Rest_Subscriptions_AngellEYE';
                 
             } else {
+                $methods[] = 'WC_Gateway_PayPal_Pro_PayFlow_ACH_AngellEYE';
                 $methods[] = 'WC_Gateway_PayPal_Pro_Payflow_AngellEYE';
                 $methods[] = 'WC_Gateway_PayPal_Advanced_AngellEYE';
                 $methods[] = 'WC_Gateway_PayPal_Pro_AngellEYE';
@@ -1036,6 +1039,22 @@ if(!class_exists('AngellEYE_Gateway_Paypal')){
                 return $bool;
             }
         }
+        
+        public function angelleye_paypal_pro_payflow_ach_decrypt_gateway_api($bool) {
+            $gateway_settings = AngellEYE_Utility::angelleye_get_pre_option($bool, 'woocommerce_paypal_pro_payflow_ach_settings');
+            if( !empty($gateway_settings) && !empty($gateway_settings['is_encrypt'])) {
+                $gateway_settings_key_array = array('sandbox_paypal_vendor', 'sandbox_paypal_password', 'sandbox_paypal_user', 'sandbox_paypal_partner', 'paypal_vendor', 'paypal_password', 'paypal_user', 'paypal_partner');
+                foreach ($gateway_settings_key_array as $gateway_settings_key => $gateway_settings_value) {
+                    if( !empty( $gateway_settings[$gateway_settings_value]) ) {
+                        $gateway_settings[$gateway_settings_value] = AngellEYE_Utility::crypting($gateway_settings[$gateway_settings_value], $action = 'd');
+                    }
+                }
+                return $gateway_settings;
+            } else {
+                return $bool;
+            }
+        }
+
         public function angelleye_paypal_pro_payflow_decrypt_gateway_api($bool) {
             $gateway_settings = AngellEYE_Utility::angelleye_get_pre_option($bool, 'woocommerce_paypal_pro_payflow_settings');
             if( !empty($gateway_settings) && !empty($gateway_settings['is_encrypt'])) {

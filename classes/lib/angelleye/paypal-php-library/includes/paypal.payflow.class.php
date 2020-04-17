@@ -170,7 +170,7 @@ class Angelleye_PayPal_PayFlow extends Angelleye_PayPal_WC
 	function ProcessTransaction($DataArray)
 	{
 		$NVPRequest = $this->NVPCredentials;
-		$NVPRequestmask = $this->NVPCredentials_masked;
+		$NVPRequestmask = $this->NVPCredentials;
 		$star = '*****';
 		
 		foreach($DataArray as $DataArrayVar => $DataArrayVal)
@@ -179,7 +179,7 @@ class Angelleye_PayPal_PayFlow extends Angelleye_PayPal_WC
 			{
 				$NVPRequest .= '&'.strtoupper($DataArrayVar).'['.strlen($DataArrayVal).']='.$DataArrayVal;
                                 if(strtoupper($DataArrayVar) == 'ACCT' || strtoupper($DataArrayVar) == 'EXPDATE' || strtoupper($DataArrayVar) == 'CVV2') {
-                                    $NVPRequestmask .= '&'.strtoupper($DataArrayVar).'['.strlen($DataArrayVal).']='.'****';
+                                    $NVPRequestmask .= '&'.strtoupper($DataArrayVar).'['.strlen($DataArrayVal).']='.$DataArrayVal;
                                 } else {
                                     $NVPRequestmask .= '&'.strtoupper($DataArrayVar).'['.strlen($DataArrayVal).']='.$DataArrayVal;
                                 } 
