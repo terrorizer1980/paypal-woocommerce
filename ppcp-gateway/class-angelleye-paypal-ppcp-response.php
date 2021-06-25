@@ -22,6 +22,7 @@ class AngellEYE_PayPal_PPCP_Response {
     }
 
     public function parse_response($paypal_api_response, $url, $request, $action_name) {
+        
         try {
             if (is_wp_error($paypal_api_response)) {
                 $response = array(
@@ -31,6 +32,9 @@ class AngellEYE_PayPal_PPCP_Response {
             } else {
                 $body = wp_remote_retrieve_body($paypal_api_response);
                 $response = !empty($body) ? json_decode($body, true) : '';
+                if (strpos($url, 'paypal.com') !== false) {
+                    $response = isset($response['body']) ? json_decode($response['body'], true) : $response;
+                }
             }
             do_action('angelleye_ppcp_request_respose_data', $request, $response, $action_name);
             $this->angelleye_ppcp_write_log($url, $request, $paypal_api_response, $action_name);
@@ -44,34 +48,22 @@ class AngellEYE_PayPal_PPCP_Response {
     public function angelleye_ppcp_write_log($url, $request, $response, $action_name = 'Exception') {
         global $wp_version;
         $environment = ($this->is_sandbox === true) ? 'SANDBOX' : 'LIVE';
-        if (strpos($action_name, 'webhook') !== false) {
-            $this->api_log->webhook_log('PayPal Environment: ' . $environment);
-            $this->api_log->webhook_log('WordPress Version: ' . $wp_version);
-            $this->api_log->webhook_log('WooCommerce Version: ' . WC()->version);
-            $this->api_log->webhook_log('PFW Version: ' . VERSION_PFW);
-            $this->api_log->webhook_log('Action: ' . $action_name);
-            $this->api_log->webhook_log('Request URL: ' . $url);
-            $this->api_log->webhook_log('Request: ' . wc_print_r($request, true));
-            $this->api_log->webhook_log('Response Code: ' . wp_remote_retrieve_response_code($response));
-            $this->api_log->webhook_log('Response Message: ' . wp_remote_retrieve_response_message($response));
-            $this->api_log->webhook_log('Response Body: ' . wc_print_r(json_decode(wp_remote_retrieve_body($response), true), true));
-        } else {
-            $this->api_log->log('PayPal Environment: ' . $environment);
-            $this->api_log->log('WordPress Version: ' . $wp_version);
-            $this->api_log->log('WooCommerce Version: ' . WC()->version);
-            $this->api_log->log('PFW Version: ' . VERSION_PFW);
-            $this->api_log->log('Action: ' . $action_name);
-            $this->api_log->log('Request URL: ' . $url);
-            $this->api_log->log('PayPal Debug ID: ' . wp_remote_retrieve_header($response, 'paypal-debug-id'));
-            if (!empty($request['body']) && is_array($request['body'])) {
-                $this->api_log->log('Request Body: ' . wc_print_r($request['body'], true));
-            } elseif (isset($request['body']) && !empty($request['body']) && is_string($request['body'])) {
-                $this->api_log->log('Request Body: ' . wc_print_r(json_decode($request['body'], true), true));
-            }
-            $this->api_log->log('Response Code: ' . wp_remote_retrieve_response_code($response));
-            $this->api_log->log('Response Message: ' . wp_remote_retrieve_response_message($response));
-            $this->api_log->log('Response Body: ' . wc_print_r(json_decode(wp_remote_retrieve_body($response), true), true));
+        $this->api_log->log('PayPal Environment: ' . $environment);
+        $this->api_log->log('WordPress Version: ' . $wp_version);
+        $this->api_log->log('WooCommerce Version: ' . WC()->version);
+        $this->api_log->log('PFW Version: ' . VERSION_PFW);
+        $this->api_log->log('Action: ' . $action_name);
+        $this->api_log->log('Request URL: ' . $url);
+        $response_body = isset($response['body']) ? json_decode($response['body'], true) : $response;
+        $this->api_log->log('PayPal Debug ID: ' . $this->angelleye_ppcp_parse_headers($response_body['headers'], 'paypal-debug-id'));
+        if (!empty($request['body']) && is_array($request['body'])) {
+            $this->api_log->log('Request Body: ' . wc_print_r($request['body'], true));
+        } elseif (isset($request['body']) && !empty($request['body']) && is_string($request['body'])) {
+            $this->api_log->log('Request Body: ' . wc_print_r(json_decode($request['body'], true), true));
         }
+        $this->api_log->log('Response Code: ' . wp_remote_retrieve_response_code($response));
+        $this->api_log->log('Response Message: ' . wp_remote_retrieve_response_message($response));
+        $this->api_log->log('Response Body: ' . wc_print_r(json_decode(wp_remote_retrieve_body($response_body), true), true));
     }
 
     public function angelleye_ppcp_load_class() {
@@ -127,6 +119,40 @@ class AngellEYE_PayPal_PPCP_Response {
             $this->api_log->log("The exception was created on line: " . $ex->getLine(), 'error');
             $this->api_log->log($ex->getMessage(), 'error');
         }
+    }
+
+    public function angelleye_ppcp_parse_headers($headers, $key_debug) {
+        if (is_string($headers)) {
+            $headers = str_replace("\r\n", "\n", $headers);
+            $headers = preg_replace('/\n[ \t]/', ' ', $headers);
+            $headers = explode("\n", $headers);
+        }
+        for ($i = count($headers) - 1; $i >= 0; $i--) {
+            if (!empty($headers[$i]) && false === strpos($headers[$i], ':')) {
+                $headers = array_splice($headers, $i);
+                break;
+            }
+        }
+        $newheaders = array();
+        foreach ((array) $headers as $tempheader) {
+            if (empty($tempheader)) {
+                continue;
+            }
+            if (strpos($tempheader, ':') !== false) {
+                list($key, $value) = explode(':', $tempheader, 2);
+                $key = strtolower($key);
+                $value = trim($value);
+                if (isset($newheaders[$key])) {
+                    if (!is_array($newheaders[$key])) {
+                        $newheaders[$key] = array($newheaders[$key]);
+                    }
+                    $newheaders[$key][] = $value;
+                } else {
+                    $newheaders[$key] = $value;
+                }
+            }
+        }
+        return isset($newheaders[$key_debug]) ? $newheaders[$key_debug] : '';
     }
 
 }
