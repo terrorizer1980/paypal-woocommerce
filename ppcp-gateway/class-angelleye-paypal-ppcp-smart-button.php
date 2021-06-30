@@ -217,11 +217,12 @@ class AngellEYE_PayPal_PPCP_Smart_Button {
     }
 
     public function enqueue_scripts() {
-        if (is_checkout() && $this->advanced_card_payments) {
+        //$this->payment_request->angelleye_ppcp_create_payment_token();
+        //if (is_checkout() && $this->advanced_card_payments) {
             if (!isset($_GET['paypal_order_id']) && !isset($_GET['key'])) {
                 $this->client_token = $this->payment_request->angelleye_ppcp_get_generate_token();
             }
-        }
+        //}
 
         $this->angelleye_ppcp_smart_button_style_properties();
         $smart_js_arg = array();
@@ -235,6 +236,7 @@ class AngellEYE_PayPal_PPCP_Smart_Button {
         } else {
             $smart_js_arg['client-id'] = PAYPAL_PPCP_PARTNER_CLIENT_ID;
         }
+        $smart_js_arg['vault'] = 'true';
         $smart_js_arg['merchant-id'] = $this->merchant_id;
         $is_cart = is_cart() && !WC()->cart->is_empty();
         $is_product = is_product();
@@ -602,9 +604,9 @@ class AngellEYE_PayPal_PPCP_Smart_Button {
     public function angelleye_ppcp_clean_url($tag, $handle) {
         if ('angelleye-paypal-checkout-sdk' === $handle) {
             $client_token = '';
-            if (is_checkout() && $this->advanced_card_payments) {
+            //if (is_checkout() && $this->advanced_card_payments) {
                 $client_token = "data-client-token='{$this->client_token}'";
-            }
+            //}
             $tag = str_replace(' src=', ' ' . $client_token . ' data-namespace="angelleye_paypal_sdk" src=', $tag);
         }
         return $tag;

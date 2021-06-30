@@ -1162,7 +1162,7 @@ class AngellEYE_PayPal_PPCP_Payment {
                 return true;
             } else {
                 $error_message = $this->angelleye_ppcp_get_readable_message($this->api_response);
-                if(function_exists('wc_add_notice')) {
+                if (function_exists('wc_add_notice')) {
                     wc_add_notice($error_message, 'error');
                 }
                 return false;
@@ -1280,9 +1280,40 @@ class AngellEYE_PayPal_PPCP_Payment {
                 'blocking' => true,
                 'headers' => array('Content-Type' => 'application/json', 'Authorization' => '', "prefer" => "return=representation", 'PayPal-Request-Id' => $this->generate_request_id(), 'Paypal-Auth-Assertion' => $this->angelleye_ppcp_paypalauthassertion()),
                 'cookies' => array(),
-                'body' => array(), //json_encode(array('customer_id' => 'customer_1234_wow'))
+                'body' => array()
             );
+            if (is_user_logged_in()) {
+                $customer_id = get_current_user_id();
+                $args['body'] = json_encode(array('customer_id' => $this->merchant_id . $customer_id));
+            }
             $response = $this->api_request->request($this->generate_token_url, $args, 'get client token');
+            if (!empty($response['client_token'])) {
+                $this->client_token = $response['client_token'];
+                return $this->client_token;
+            }
+        } catch (Exception $ex) {
+            $this->api_log->log("The exception was created on line: " . $ex->getLine(), 'error');
+            $this->api_log->log($ex->getMessage(), 'error');
+        }
+    }
+
+    public function angelleye_ppcp_create_payment_token() {
+        try {
+            $args = array(
+                'method' => 'POST',
+                'timeout' => 60,
+                'redirection' => 5,
+                'httpversion' => '1.1',
+                'blocking' => true,
+                'headers' => array('Content-Type' => 'application/json', 'Authorization' => '', "prefer" => "return=representation", 'PayPal-Request-Id' => $this->generate_request_id(), 'Paypal-Auth-Assertion' => $this->angelleye_ppcp_paypalauthassertion()),
+                'cookies' => array(),
+                'body' => array()
+            );
+            if (is_user_logged_in()) {
+                $customer_id = get_current_user_id();
+                
+            }
+            $response = $this->api_request->request('https://api-m.sandbox.paypal.com/v2/vault/payment-tokens?customer_id=EYQ22WLX6GNLY1', $args, 'get client token');
             if (!empty($response['client_token'])) {
                 $this->client_token = $response['client_token'];
                 return $this->client_token;
