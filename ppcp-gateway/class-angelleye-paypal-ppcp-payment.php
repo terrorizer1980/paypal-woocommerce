@@ -97,6 +97,9 @@ class AngellEYE_PayPal_PPCP_Payment {
                     ),
                 ),
             );
+            if(is_user_logged_in()) {
+                $body_request['purchase_units'][0]['custom_id'] = $this->merchant_id . $customer_id;
+            }
             if ($woo_order_id != null) {
                 $order = wc_get_order($woo_order_id);
                 $body_request['purchase_units'][0]['invoice_id'] = $this->invoice_prefix . str_replace("#", "", $order->get_order_number());
