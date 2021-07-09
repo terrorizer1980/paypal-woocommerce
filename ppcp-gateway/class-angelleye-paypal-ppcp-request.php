@@ -29,12 +29,13 @@ class AngellEYE_PayPal_PPCP_Request {
         $this->angelleye_ppcp_load_class();
         $this->is_sandbox = 'yes' === $this->settings->get('testmode', 'no');
         $this->paymentaction = $this->settings->get('paymentaction', 'capture');
-        $this->ppcp_host = PAYPAL_FOR_WOOCOMMERCE_PPCP_WEB_SERVICE;
         if ($this->is_sandbox) {
+            $this->ppcp_host = PAYPAL_FOR_WOOCOMMERCE_PPCP_SANDBOX_WEB_SERVICE;
             $this->token_url = 'https://api-m.sandbox.paypal.com/v1/oauth2/token';
             $this->paypal_oauth_api = 'https://api-m.sandbox.paypal.com/v1/oauth2/token/';
             $this->generate_token_url = 'https://api-m.sandbox.paypal.com/v1/identity/generate-token';
         } else {
+            $this->ppcp_host = PAYPAL_FOR_WOOCOMMERCE_PPCP_LIVE_WEB_SERVICE;
             $this->token_url = 'https://api-m.paypal.com/v1/oauth2/token';
             $this->paypal_oauth_api = 'https://api-m.paypal.com/v1/oauth2/token/';
             $this->generate_token_url = 'https://api-m.paypal.com/v1/identity/generate-token';
@@ -55,7 +56,8 @@ class AngellEYE_PayPal_PPCP_Request {
         $args['method'] = 'POST';
         $args['body'] = json_encode($body);
         $args['timeout'] = 70;
-        $args['headers'] = array('Content-Type' => 'application/json', 'user-agent'  => 'PFW_PPCP');
+        $args['user-agent'] = 'PFW_PPCP';
+        $args['headers'] = array('Content-Type' => 'application/json');
         $this->result = wp_remote_get($this->ppcp_host . 'ppcp-request', $args);
         return $this->result;
     }
@@ -65,6 +67,7 @@ class AngellEYE_PayPal_PPCP_Request {
             if (strpos($url, 'paypal.com') !== false) {
                 $this->result = $this->angelleye_ppcp_remote_get($url, $args, $action_name);
             } else {
+                $args['user-agent'] = 'PFW_PPCP';
                 $this->result = wp_remote_get($url, $args);
             }
             return $this->api_response->parse_response($this->result, $url, $args, $action_name);
