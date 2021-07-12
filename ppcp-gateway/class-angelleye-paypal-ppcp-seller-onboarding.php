@@ -5,8 +5,7 @@ defined('ABSPATH') || exit;
 class AngellEYE_PayPal_PPCP_Seller_Onboarding {
 
     public $dcc_applies;
-    public $on_board_host;
-    public $on_board_sandbox_host;
+    public $ppcp_host;
     public $testmode;
     public $settings;
     public $host;
@@ -29,10 +28,8 @@ class AngellEYE_PayPal_PPCP_Seller_Onboarding {
         try {
             $this->angelleye_ppcp_load_class();
             $this->sandbox_partner_merchant_id = PAYPAL_PPCP_SNADBOX_PARTNER_MERCHANT_ID;
-            $this->on_board_sandbox_host = PAYPAL_SELLER_ONBOARDING_SANDBOX_URL;
             $this->partner_merchant_id = PAYPAL_PPCP_PARTNER_MERCHANT_ID;
-            $this->on_board_host = PAYPAL_SELLER_ONBOARDING_LIVE_URL;
-            add_action('wc_ajax_ppcp_login_seller', array($this, 'angelleye_ppcp_login_seller'));
+            //add_action('wc_ajax_ppcp_login_seller', array($this, 'angelleye_ppcp_login_seller'));
             add_action('admin_init', array($this, 'angelleye_ppcp_listen_for_merchant_id'));
         } catch (Exception $ex) {
             $this->api_log->log("The exception was created on line: " . $ex->getLine(), 'error');
@@ -77,29 +74,31 @@ class AngellEYE_PayPal_PPCP_Seller_Onboarding {
         $this->is_sandbox = ( $testmode === 'yes' ) ? true : false;
         $body = $this->data();
         if ($this->is_sandbox) {
-            $host_url = $this->on_board_sandbox_host . 'seller-onboarding.php';
+            $this->ppcp_host = PAYPAL_FOR_WOOCOMMERCE_PPCP_SANDBOX_WEB_SERVICE;
             $tracking_id = angelleye_key_generator();
             $body['tracking_id'] = $tracking_id;
             update_option('angelleye_ppcp_sandbox_tracking_id', $tracking_id);
         } else {
-            $host_url = $this->on_board_host . 'seller-onboarding.php';
+            $this->ppcp_host = PAYPAL_FOR_WOOCOMMERCE_PPCP_LIVE_WEB_SERVICE;
             $tracking_id = angelleye_key_generator();
             $body['tracking_id'] = $tracking_id;
             update_option('angelleye_ppcp_live_tracking_id', $tracking_id);
         }
+        $host_url = $this->ppcp_host . 'generate-signup-link';
         $args = array(
             'method' => 'POST',
-            'body' => $body,
-            'headers' => array(),
+            'body' => wp_json_encode($body),
+            'headers' => array('Content-Type' => 'application/json'),
         );
         return $this->api_request->request($host_url, $args, 'generate_signup_link');
     }
 
     private function default_data() {
+        $testmode = ($this->is_sandbox) ? 'yes' : 'no';
         return array(
-            'testmode' => ($this->is_sandbox) ? 'yes' : 'no',
+            'testmode' => $testmode,
             'return_url' => admin_url(
-                    'admin.php?page=wc-settings&tab=checkout&section=angelleye_ppcp'
+                    'admin.php?page=wc-settings&tab=checkout&section=angelleye_ppcp&testmode=' . $testmode
             ),
             'return_url_description' => __(
                     'Return to your shop.', 'paypal-for-woocommerce'
@@ -142,7 +141,6 @@ class AngellEYE_PayPal_PPCP_Seller_Onboarding {
             } else {
                 set_transient('angelleye_ppcp_live_seller_onboarding_process_done', 'yes', 29000);
             }
-            
         } catch (Exception $ex) {
             $this->api_log->log("The exception was created on line: " . $ex->getLine(), 'error');
             $this->api_log->log($ex->getMessage(), 'error');
@@ -151,15 +149,23 @@ class AngellEYE_PayPal_PPCP_Seller_Onboarding {
 
     public function angelleye_ppcp_listen_for_merchant_id() {
         try {
+            $this->is_sandbox = false;
             if (!$this->is_valid_site_request()) {
                 return;
             }
             if (!isset($_GET['merchantIdInPayPal'])) {
                 return;
             }
-            $this->is_sandbox = 'yes' === $this->settings->get('testmode', 'no');
-            $merchant_id = sanitize_text_field(wp_unslash($_GET['merchantIdInPayPal']));
+            if (!isset($_GET['testmode'])) {
+                return;
+            }
+            if (isset($_GET['testmode']) && 'yes' === $_GET['testmode']) {
+                $this->is_sandbox = true;
+            }
+            $this->settings->set('enabled', 'yes');
+            $this->settings->set('testmode', ($this->is_sandbox) ? 'yes' : 'no');
             $this->host = ($this->is_sandbox) ? 'https://api-m.sandbox.paypal.com' : 'https://api-m.paypal.com';
+            $merchant_id = sanitize_text_field(wp_unslash($_GET['merchantIdInPayPal']));
             if (isset($_GET['merchantId'])) {
                 $merchant_email = sanitize_text_field(wp_unslash($_GET['merchantId']));
             } else {
@@ -188,23 +194,24 @@ class AngellEYE_PayPal_PPCP_Seller_Onboarding {
     public function angelleye_get_seller_onboarding_status() {
         try {
             if ($this->is_sandbox) {
-                $host_url = $this->on_board_sandbox_host . 'merchant-integrations.php';
+                $this->ppcp_host = PAYPAL_FOR_WOOCOMMERCE_PPCP_SANDBOX_WEB_SERVICE;
                 $tracking_id = get_option('angelleye_ppcp_sandbox_tracking_id', '');
                 $body['tracking_id'] = $tracking_id;
                 $body['testmode'] = ($this->is_sandbox) ? 'yes' : 'no';
             } else {
-                $host_url = $this->on_board_host . 'merchant-integrations.php';
+                $this->ppcp_host = PAYPAL_FOR_WOOCOMMERCE_PPCP_LIVE_WEB_SERVICE;
                 $tracking_id = get_option('angelleye_ppcp_live_tracking_id', '');
                 $body['tracking_id'] = $tracking_id;
                 $body['testmode'] = ($this->is_sandbox) ? 'yes' : 'no';
             }
             $args = array(
                 'method' => 'POST',
-                'body' => $body,
-                'headers' => array(),
+                'body' => wp_json_encode($body),
+                'headers' => array('Content-Type' => 'application/json'),
             );
+            $host_url = $this->ppcp_host . 'get-tracking-status';
             $seller_onboarding_status = $this->api_request->request($host_url, $args, 'get_tracking_status');
-            if (isset($seller_onboarding_status['result']) && 'success' === $seller_onboarding_status['result'] && !empty($seller_onboarding_status['body'])) {
+            if (isset($seller_onboarding_status['status']) && 'true' === $seller_onboarding_status['status'] && !empty($seller_onboarding_status['body'])) {
                 $json = json_decode($seller_onboarding_status['body']);
                 if (!empty($json->merchant_id)) {
                     if ($this->is_sandbox) {
