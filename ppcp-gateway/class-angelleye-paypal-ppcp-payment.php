@@ -98,6 +98,7 @@ class AngellEYE_PayPal_PPCP_Payment {
                 ),
             );
             if(is_user_logged_in()) {
+                $customer_id = get_current_user_id();
                 $body_request['purchase_units'][0]['custom_id'] = $this->merchant_id . $customer_id;
             }
             if ($woo_order_id != null) {
@@ -1275,7 +1276,7 @@ class AngellEYE_PayPal_PPCP_Payment {
             );
             if (is_user_logged_in()) {
                 $customer_id = get_current_user_id();
-                $args['body'] = json_encode(array('customer_id' => $this->merchant_id . $customer_id));
+                $args['body'] = array('customer_id' => $this->merchant_id . $customer_id);
             }
             $response = $this->api_request->request($this->generate_token_url, $args, 'get client token');
             if (!empty($response['client_token'])) {
@@ -1302,9 +1303,13 @@ class AngellEYE_PayPal_PPCP_Payment {
             );
             if (is_user_logged_in()) {
                 $customer_id = get_current_user_id();
+                $args['body'] = array('customer_id' => $this->merchant_id . $customer_id,
+                    'source' => array('paypal' => array('usage_type' => 'MERCHANT')),
+                    'application_context' => array('return_url' => 'https://example.com/returnUrl', 'cancel_url' => 'https://example.com/cancelUrl')
+                    );
                 
             }
-            $response = $this->api_request->request('https://api-m.sandbox.paypal.com/v2/vault/payment-tokens?customer_id=EYQ22WLX6GNLY1', $args, 'get client token');
+            $response = $this->api_request->request('https://api-m.sandbox.paypal.com/v2/vault/payment-tokens', $args, 'get client token');
             if (!empty($response['client_token'])) {
                 $this->client_token = $response['client_token'];
                 return $this->client_token;
